@@ -1,6 +1,6 @@
-class MoonstreamAuthorizationVerificationError(Exception):
+class MoonstreamVerificationError(Exception):
     """
-    Raised when invalid signer is provided.
+    Raised when invalid signer or schema is provided.
     """
 
 

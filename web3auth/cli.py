@@ -1,13 +1,26 @@
 import argparse
-import getpass
 import base64
+import getpass
 import json
 import time
+from enum import Enum
 
 from eth_account import Account
 from hexbytes import HexBytes
 
-from .auth import AUTH_DEADLINE_DEFAULT_INTERVAL, authorize, verify
+from .auth import (
+    AUTH_DEADLINE_DEFAULT_INTERVAL,
+    MoonstreamAuthorization,
+    MoonstreamSignUp,
+    authorize,
+    signup,
+    verify,
+)
+
+
+class Schemas(Enum):
+    authorization = MoonstreamAuthorization
+    signup = MoonstreamSignUp
 
 
 def decrypt_keystore(keystore_path: str, password: str) -> HexBytes:
@@ -21,18 +34,23 @@ def handle_authorize(args: argparse.Namespace) -> None:
     if password is None:
         password = getpass.getpass()
     address, private_key = decrypt_keystore(args.signer, password)
-    authorization = authorize(args.deadline, address, private_key)
-    print(json.dumps(authorization))
+    authorization_payload = authorize(args.deadline, address, private_key)
+    print(json.dumps(authorization_payload))
 
 
 def handle_signup(args: argparse.Namespace) -> None:
-    pass
+    password = args.password
+    if password is None:
+        password = getpass.getpass()
+    address, private_key = decrypt_keystore(args.signer, password)
+    signup_payload = signup(address, private_key)
+    print(json.dumps(signup_payload))
 
 
 def handle_verify(args: argparse.Namespace) -> None:
     payload_json = base64.decodebytes(args.payload).decode("utf-8")
     payload = json.loads(payload_json)
-    verify(payload)
+    verify(authorization_payload=payload, schema=Schemas[args.schema].value)
     print("Verified!")
 
 
@@ -65,9 +83,27 @@ def main() -> argparse.ArgumentParser:
     authorize_parser.set_defaults(func=handle_authorize)
 
     signup_parser = subcommands.add_parser("signup")
+    signup_parser.add_argument(
+        "-s",
+        "--signer",
+        required=True,
+        help="Path to signer keyfile (or brownie account name).",
+    )
+    signup_parser.add_argument(
+        "-p",
+        "--password",
+        required=False,
+        help="(Optional) password for signing account. If you don't provide it here, you will be prompte for it.",
+    )
     signup_parser.set_defaults(func=handle_signup)
 
     verify_parser = subcommands.add_parser("verify")
+    verify_parser.add_argument(
+        "-s",
+        "--schema",
+        required=True,
+        help=f"Which schema to use for verification ({[member for member in Schemas.__members__]})",
+    )
     verify_parser.add_argument(
         "--payload",
         type=lambda s: s.encode(),
