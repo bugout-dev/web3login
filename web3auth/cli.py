@@ -11,16 +11,16 @@ from hexbytes import HexBytes
 from .auth import (
     AUTH_DEADLINE_DEFAULT_INTERVAL,
     MoonstreamAuthorization,
-    MoonstreamSignUp,
+    MoonstreamRegistration,
     authorize,
-    signup,
+    register,
     verify,
 )
 
 
 class Schemas(Enum):
     authorization = MoonstreamAuthorization
-    signup = MoonstreamSignUp
+    registration = MoonstreamRegistration
 
 
 def decrypt_keystore(keystore_path: str, password: str) -> HexBytes:
@@ -38,13 +38,13 @@ def handle_authorize(args: argparse.Namespace) -> None:
     print(json.dumps(authorization_payload))
 
 
-def handle_signup(args: argparse.Namespace) -> None:
+def handle_register(args: argparse.Namespace) -> None:
     password = args.password
     if password is None:
         password = getpass.getpass()
     address, private_key = decrypt_keystore(args.signer, password)
-    signup_payload = signup(address, private_key)
-    print(json.dumps(signup_payload))
+    registration_payload = register(address, private_key)
+    print(json.dumps(registration_payload))
 
 
 def handle_verify(args: argparse.Namespace) -> None:
@@ -56,7 +56,7 @@ def handle_verify(args: argparse.Namespace) -> None:
 
 def main() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Moonstream Web3 authorization and signup module"
+        description="Moonstream Web3 authorization and registration module"
     )
     subcommands = parser.add_subparsers()
 
@@ -82,20 +82,20 @@ def main() -> argparse.ArgumentParser:
     )
     authorize_parser.set_defaults(func=handle_authorize)
 
-    signup_parser = subcommands.add_parser("signup")
-    signup_parser.add_argument(
+    register_parser = subcommands.add_parser("register")
+    register_parser.add_argument(
         "-s",
         "--signer",
         required=True,
         help="Path to signer keyfile (or brownie account name).",
     )
-    signup_parser.add_argument(
+    register_parser.add_argument(
         "-p",
         "--password",
         required=False,
         help="(Optional) password for signing account. If you don't provide it here, you will be prompte for it.",
     )
-    signup_parser.set_defaults(func=handle_signup)
+    register_parser.set_defaults(func=handle_register)
 
     verify_parser = subcommands.add_parser("verify")
     verify_parser.add_argument(

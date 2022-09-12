@@ -43,13 +43,13 @@ class MoonstreamAuthorization(EIP712Message):
 
 
 # Sign Up
-SIGNUP_PAYLOAD_NAME = "MoonstreamSignUp"
-SIGNUP_VERSION = "1"
+registration_PAYLOAD_NAME = "MoonstreamRegistration"
+registration_VERSION = "1"
 
 
-class MoonstreamSignUp(EIP712Message):
+class MoonstreamRegistration(EIP712Message):
     """
-    SignUp functionality from Moonstream for Web3 applications.
+    registration functionality from Moonstream for Web3 applications.
 
     Login flow relies on form passed to API.
 
@@ -60,7 +60,7 @@ class MoonstreamSignUp(EIP712Message):
     }
 
     Authorization messages will be generated pursuant to EIP712 using the following parameters:
-    Domain separator - name: MoonstreamSignUp, version: <Web3Auth version>
+    Domain separator - name: MoonstreamRegistration, version: <Web3Auth version>
     Fields - address ("address" type)"""
 
     _name_: "string"
@@ -102,11 +102,11 @@ def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, A
     return api_payload
 
 
-def signup(address: str, private_key: HexBytes) -> Dict[str, Any]:
+def register(address: str, private_key: HexBytes) -> Dict[str, Any]:
     """
     Genereate SignIn message for address.
     """
-    message = MoonstreamSignUp(
+    message = MoonstreamRegistration(
         _name_=AUTH_PAYLOAD_NAME,
         _version_=AUTH_VERSION,
         address=address,
@@ -125,7 +125,7 @@ def signup(address: str, private_key: HexBytes) -> Dict[str, Any]:
 
 def verify(
     authorization_payload: Dict[str, Any],
-    schema: Union[MoonstreamAuthorization, MoonstreamSignUp],
+    schema: Union[MoonstreamAuthorization, MoonstreamRegistration],
 ) -> bool:
     """
     Verifies provided signature from signer with correct address.
@@ -146,7 +146,7 @@ def verify(
             address=address,
             deadline=deadline,
         )
-    elif schema is MoonstreamSignUp:
+    elif schema is MoonstreamRegistration:
         message = schema(
             _name_=AUTH_PAYLOAD_NAME,
             _version_=AUTH_VERSION,
