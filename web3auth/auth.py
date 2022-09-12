@@ -9,7 +9,6 @@ from web3 import Web3
 
 from . import exceptions
 
-
 # Authorization
 AUTH_PAYLOAD_NAME = "MoonstreamAuthorization"
 AUTH_VERSION = "1"
