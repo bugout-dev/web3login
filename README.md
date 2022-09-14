@@ -1,4 +1,4 @@
-# web3-auth
+# web3login
 
 Moonstream: Open source Web3 authorization library
 
