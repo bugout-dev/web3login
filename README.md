@@ -7,7 +7,7 @@ Moonstream: Open source Web3 authorization library
 ### Generate signature for registration
 
 ```bash
-web3auth register -s .secrets/keyfile -p "${KEYFILE_PASSWORD}" | base64 -w 0
+web3login register -s .secrets/keyfile -p "${KEYFILE_PASSWORD}" | base64 -w 0
 ```
 
 Output base64 string could be passed as `Authorization` header or verified with CLI.
@@ -15,5 +15,5 @@ Output base64 string could be passed as `Authorization` header or verified with 
 ### Verify registration signature
 
 ```bash
-web3auth verify --schema registration --payload "${GENERATED_BASE64_SIGNATURE}"
+web3login verify --schema registration --payload "${GENERATED_BASE64_SIGNATURE}"
 ```

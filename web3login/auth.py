@@ -33,7 +33,7 @@ class MoonstreamAuthorization(EIP712Message):
     }
 
     Authorization messages will be generated pursuant to EIP712 using the following parameters:
-    Domain separator - name: MoonstreamAuthorization, version: <Web3Auth version>
+    Domain separator - name: MoonstreamAuthorization, version: <Web3Login version>
     Fields - address ("address" type), deadline: ("uint256" type)"""
 
     _name_: "string"
@@ -61,7 +61,7 @@ class MoonstreamRegistration(EIP712Message):
     }
 
     Authorization messages will be generated pursuant to EIP712 using the following parameters:
-    Domain separator - name: MoonstreamRegistration, version: <Web3Auth version>
+    Domain separator - name: MoonstreamRegistration, version: <Web3Login version>
     Fields - address ("address" type)"""
 
     _name_: "string"

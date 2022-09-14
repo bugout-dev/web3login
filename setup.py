@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-with open("web3auth/version.txt") as ifp:
+with open("web3login/version.txt") as ifp:
     VERSION = ifp.read().strip()
 
 long_description = ""
@@ -8,7 +8,7 @@ with open("README.md") as ifp:
     long_description = ifp.read()
 
 setup(
-    name="web3auth",
+    name="web3login",
     version=VERSION,
     packages=find_packages(),
     install_requires=[
@@ -33,12 +33,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Topic :: Software Development :: Libraries",
     ],
-    url="https://github.com/bugout-dev/web3auth",
-    package_data={"web3auth": ["py.typed"]},
+    url="https://github.com/bugout-dev/web3login",
+    package_data={"web3login": ["py.typed"]},
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "web3auth=web3auth.cli:main",
+            "web3login=web3login.cli:main",
         ]
     },
 )
