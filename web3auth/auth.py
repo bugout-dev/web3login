@@ -1,9 +1,11 @@
 import time
+from os import strerror
 from typing import Any, Dict, Union, cast
 
 import eth_keys
 from eip712.messages import EIP712Message, _hash_eip191_message
 from eth_account._utils.signing import sign_message_hash
+from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from web3 import Web3
 
@@ -122,6 +124,10 @@ def register(address: str, private_key: HexBytes) -> Dict[str, Any]:
     return api_payload
 
 
+def to_checksum_address(address: str) -> ChecksumAddress:
+    return Web3.toChecksumAddress(cast(str, address))
+
+
 def verify(
     authorization_payload: Dict[str, Any],
     schema: Union[MoonstreamAuthorization, MoonstreamRegistration],
@@ -132,7 +138,7 @@ def verify(
     time_now = int(time.time())
 
     web3_client = Web3()
-    address = Web3.toChecksumAddress(cast(str, authorization_payload["address"]))
+    address = to_checksum_address(authorization_payload["address"])
     signature = cast(str, authorization_payload["signed_message"])
 
     if schema is MoonstreamAuthorization:
