@@ -1,8 +1,8 @@
 import time
-from os import strerror
-from typing import Any, Dict, Union, cast
+from enum import Enum
+from typing import Any, Dict, cast
 
-import eth_keys
+import eth_keys  # type: ignore
 from eip712.messages import EIP712Message, _hash_eip191_message
 from eth_account._utils.signing import sign_message_hash
 from eth_typing import ChecksumAddress
@@ -36,11 +36,11 @@ class MoonstreamAuthorization(EIP712Message):
     Domain separator - name: MoonstreamAuthorization, version: <Web3Login version>
     Fields - address ("address" type), deadline: ("uint256" type)"""
 
-    _name_: "string"
-    _version_: "string"
+    _name_: "string"  # type: ignore
+    _version_: "string"  # type: ignore
 
-    address: "address"
-    deadline: "uint256"
+    address: "address"  # type: ignore
+    deadline: "uint256"  # type: ignore
 
 
 # Sign Up
@@ -64,10 +64,15 @@ class MoonstreamRegistration(EIP712Message):
     Domain separator - name: MoonstreamRegistration, version: <Web3Login version>
     Fields - address ("address" type)"""
 
-    _name_: "string"
-    _version_: "string"
+    _name_: "string"  # type: ignore
+    _version_: "string"  # type: ignore
 
-    address: "address"
+    address: "address"  # type: ignore
+
+
+class Schemas(Enum):
+    authorization = MoonstreamAuthorization
+    registration = MoonstreamRegistration
 
 
 def sign_message(message_hash_bytes: HexBytes, private_key: HexBytes) -> HexBytes:
@@ -88,7 +93,7 @@ def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, A
         _version_=AUTH_VERSION,
         address=address,
         deadline=deadline,
-    )
+    )  # type: ignore
 
     msg_hash_bytes = HexBytes(_hash_eip191_message(message.signable_message))
 
@@ -111,7 +116,7 @@ def register(address: str, private_key: HexBytes) -> Dict[str, Any]:
         _name_=AUTH_PAYLOAD_NAME,
         _version_=AUTH_VERSION,
         address=address,
-    )
+    )  # type: ignore
     msg_hash_bytes = HexBytes(_hash_eip191_message(message.signable_message))
 
     signed_message = sign_message(msg_hash_bytes, private_key)
@@ -130,7 +135,7 @@ def to_checksum_address(address: str) -> ChecksumAddress:
 
 def verify(
     authorization_payload: Dict[str, Any],
-    schema: Union[MoonstreamAuthorization, MoonstreamRegistration],
+    schema: str,
 ) -> bool:
     """
     Verifies provided signature from signer with correct address.
@@ -141,22 +146,22 @@ def verify(
     address = to_checksum_address(authorization_payload["address"])
     signature = cast(str, authorization_payload["signed_message"])
 
-    if schema is MoonstreamAuthorization:
+    if schema == Schemas.authorization.name:
         deadline = cast(int, authorization_payload["deadline"])
         if deadline < time_now:
             raise exceptions.MoonstreamAuthorizationExpired("Deadline exceeded")
-        message = schema(
+        message = Schemas.authorization.value(
             _name_=AUTH_PAYLOAD_NAME,
             _version_=AUTH_VERSION,
             address=address,
             deadline=deadline,
-        )
-    elif schema is MoonstreamRegistration:
-        message = schema(
+        )  # type: ignore
+    elif schema == Schemas.registration.name:
+        message = Schemas.registration.value(
             _name_=AUTH_PAYLOAD_NAME,
             _version_=AUTH_VERSION,
             address=address,
-        )
+        )  # type: ignore
     else:
         raise exceptions.MoonstreamVerificationError("Unexcepted schema")
 

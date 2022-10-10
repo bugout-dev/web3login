@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 class OAuth2MoonstreamSignature(OAuth2):
+    """
+    Extended FastAPI OAuth2 middleware to support Moonstream
+    Web3 base64 signature in Authorization header.
+    """
+
     def __init__(
         self,
         tokenUrl: str,
@@ -46,6 +51,47 @@ class OAuth2MoonstreamSignature(OAuth2):
                     status_code=HTTP_401_UNAUTHORIZED,
                     detail="Not authenticated",
                     headers={"WWW-Authenticate": "moonstream"},
+                )
+            else:
+                return None
+        return param
+
+
+class OAuth2BearerOrSignature(OAuth2):
+    """
+    Extended FastAPI OAuth2 middleware to support Bearer token
+    or Moonstream Web3 base64 signature in Authorization header.
+    """
+
+    def __init__(
+        self,
+        tokenUrl: str,
+        scheme_name: Optional[str] = None,
+        scopes: Optional[Dict[str, str]] = None,
+        description: Optional[str] = None,
+        auto_error: bool = True,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        super().__init__(
+            flows=flows,
+            scheme_name=scheme_name,
+            description=description,
+            auto_error=auto_error,
+        )
+
+    async def __call__(self, request: Request) -> Optional[str]:
+        authorization: str = request.headers.get("Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+        if not authorization or (
+            scheme.lower() != "moonstream" and scheme.lower() != "bearer"
+        ):
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "moonstream/bearer"},
                 )
             else:
                 return None
@@ -98,7 +144,9 @@ class MoonstreamAuthorizationMiddleware(BaseHTTPMiddleware):
             ).decode("utf-8")
 
             json_payload = json.loads(json_payload_str)
-            verified = verify(json_payload)
+            verified = verify(
+                authorization_payload=json_payload, schema="authorization"
+            )
             address = json_payload.get("address")
             deadline = json_payload.get("deadline")
             if address is not None:
