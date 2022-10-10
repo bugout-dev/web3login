@@ -3,27 +3,15 @@ import base64
 import getpass
 import json
 import time
-from enum import Enum
+from typing import Tuple
 
 from eth_account import Account
 from hexbytes import HexBytes
 
-from .auth import (
-    AUTH_DEADLINE_DEFAULT_INTERVAL,
-    MoonstreamAuthorization,
-    MoonstreamRegistration,
-    authorize,
-    register,
-    verify,
-)
+from .auth import AUTH_DEADLINE_DEFAULT_INTERVAL, Schemas, authorize, register, verify
 
 
-class Schemas(Enum):
-    authorization = MoonstreamAuthorization
-    registration = MoonstreamRegistration
-
-
-def decrypt_keystore(keystore_path: str, password: str) -> HexBytes:
+def decrypt_keystore(keystore_path: str, password: str) -> Tuple[str, HexBytes]:
     with open(keystore_path) as keystore_file:
         keystore_data = json.load(keystore_file)
     return keystore_data["address"], Account.decrypt(keystore_data, password)
@@ -50,11 +38,11 @@ def handle_register(args: argparse.Namespace) -> None:
 def handle_verify(args: argparse.Namespace) -> None:
     payload_json = base64.decodebytes(args.payload).decode("utf-8")
     payload = json.loads(payload_json)
-    verify(authorization_payload=payload, schema=Schemas[args.schema].value)
+    verify(authorization_payload=payload, schema=Schemas[args.schema].name)
     print("Verified!")
 
 
-def main() -> argparse.ArgumentParser:
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Moonstream Web3 authorization and registration module"
     )
