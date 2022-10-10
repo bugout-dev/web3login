@@ -86,7 +86,7 @@ def sign_message(message_hash_bytes: HexBytes, private_key: HexBytes) -> HexByte
 
 def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, Any]:
     """
-    Genereate Authortization message for address.
+    Generates Authorization message for address.
     """
     message = MoonstreamAuthorization(
         _name_=AUTH_PAYLOAD_NAME,
@@ -110,7 +110,7 @@ def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, A
 
 def register(address: str, private_key: HexBytes) -> Dict[str, Any]:
     """
-    Genereate SignIn message for address.
+    Generates SignIn message for address.
     """
     message = MoonstreamRegistration(
         _name_=AUTH_PAYLOAD_NAME,
@@ -163,7 +163,7 @@ def verify(
             address=address,
         )  # type: ignore
     else:
-        raise exceptions.MoonstreamVerificationError("Unexcepted schema")
+        raise exceptions.MoonstreamVerificationError("Unaccepted schema")
 
     signer_address = web3_client.eth.account.recover_message(
         message.signable_message, signature=signature
