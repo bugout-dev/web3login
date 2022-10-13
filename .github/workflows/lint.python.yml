@@ -23,7 +23,7 @@ jobs:
       - name: Upgrade pip and setuptools
         run: pip install --upgrade pip setuptools
       - name: Install test requirements
-        run: pip install -e .[dev]
+        run: pip install -e .[dev,fastapi]
       - name: Mypy type check
         run: mypy web3login/
       - name: Black syntax check
