@@ -92,7 +92,7 @@ def to_checksum_address(address: str) -> ChecksumAddress:
     return Web3.toChecksumAddress(cast(str, address))
 
 
-def verify(authorization_payload: Dict[str, Any], application_to_check: str) -> bool:
+def verify(authorization_payload: Dict[str, Any], application_to_check: str, silent: bool = False) -> bool:
     """
     Verifies provided signature from signer with correct address.
     """
@@ -104,9 +104,13 @@ def verify(authorization_payload: Dict[str, Any], application_to_check: str) -> 
 
     deadline = cast(int, authorization_payload["deadline"])
     if deadline < time_now:
+        if silent:
+            return False
         raise exceptions.Web3AuthorizationExpired("Deadline exceeded")
     application = cast(str, authorization_payload["application"])
     if application_to_check != application:
+        if silent:
+            return False
         raise exceptions.Web3AuthorizationWrongApplication("Wrong application provided")
     message = Web3Authorization(
         _name_=AUTH_PAYLOAD_NAME,
@@ -120,6 +124,8 @@ def verify(authorization_payload: Dict[str, Any], application_to_check: str) -> 
         message.signable_message, signature=signature
     )
     if signer_address != address:
+        if silent:
+            return False
         raise exceptions.Web3VerificationError("Invalid signer")
 
     return True
