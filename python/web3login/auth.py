@@ -1,5 +1,4 @@
 import time
-from enum import Enum
 from typing import Any, Dict, cast
 
 import eth_keys  # type: ignore
@@ -12,67 +11,44 @@ from web3 import Web3
 from . import exceptions
 
 # Authorization
-AUTH_PAYLOAD_NAME = "MoonstreamAuthorization"
+AUTH_PAYLOAD_NAME = "Web3Authorization"
 AUTH_VERSION = "1"
 # By default, authorizations will remain active for 24 hours.
 AUTH_DEADLINE_DEFAULT_INTERVAL = 60 * 60 * 24
 
 
-class MoonstreamAuthorization(EIP712Message):
+class Web3Authorization(EIP712Message):
     """
-    Login functionality from Moonstream for Web3 applications.
+    Authorization functionality for Web3 applications.
 
     Login flow relies on an Authorization header passed to API of the form:
-    Authorization: moonstream <base64-encoded JSON>
+    Authorization: Web3 <base64-encoded JSON>
 
     The schema for the JSON object will be as follows:
     {
         "address": "<address of account which signed the message>",
-        "deadline": <epoch timestamp after which this header becomes invalid>,
+
+        "deadline": <epoch timestamp after which this header becomes invalid, by default is equal to 24 hours>,
+        "application": <application belong to, by default is equal to empty string>,
+
         "signature": "<signed authorization message>"
     }
 
     Authorization messages will be generated pursuant to EIP712 using the following parameters:
-    Domain separator - name: MoonstreamAuthorization, version: <Web3Login version>
-    Fields - address ("address" type), deadline: ("uint256" type)"""
-
-    _name_: "string"  # type: ignore
-    _version_: "string"  # type: ignore
-
-    address: "address"  # type: ignore
-    deadline: "uint256"  # type: ignore
-
-
-# Sign Up
-registration_PAYLOAD_NAME = "MoonstreamRegistration"
-registration_VERSION = "1"
-
-
-class MoonstreamRegistration(EIP712Message):
+    Domain separator - name: Web3Authorization, version: <Web3Login version>
+    Fields - address ("address" type), deadline: ("uint256" type), application: ("string" type)
     """
-    registration functionality from Moonstream for Web3 applications.
-
-    Login flow relies on form passed to API.
-
-    The schema for the JSON object will be as follows:
-    {
-        "address": "<address of account which signed the message>",
-        "signature": "<signed authorization message>"
-    }
-
-    Authorization messages will be generated pursuant to EIP712 using the following parameters:
-    Domain separator - name: MoonstreamRegistration, version: <Web3Login version>
-    Fields - address ("address" type)"""
 
     _name_: "string"  # type: ignore
     _version_: "string"  # type: ignore
 
     address: "address"  # type: ignore
 
-
-class Schemas(Enum):
-    authorization = MoonstreamAuthorization
-    registration = MoonstreamRegistration
+    # Optional fields
+    # deadline by default is set to 60 * 60 * 24
+    # application by default is set to empty string
+    deadline: "uint256"  # type: ignore
+    application: "string"  # type: ignore
 
 
 def sign_message(message_hash_bytes: HexBytes, private_key: HexBytes) -> HexBytes:
@@ -84,15 +60,18 @@ def sign_message(message_hash_bytes: HexBytes, private_key: HexBytes) -> HexByte
     return signed_message_bytes
 
 
-def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, Any]:
+def authorize(
+    deadline: int, address: str, application: str, private_key: HexBytes
+) -> Dict[str, Any]:
     """
     Generates Authorization message for address.
     """
-    message = MoonstreamAuthorization(
+    message = Web3Authorization(
         _name_=AUTH_PAYLOAD_NAME,
         _version_=AUTH_VERSION,
         address=address,
         deadline=deadline,
+        application=application,
     )  # type: ignore
 
     msg_hash_bytes = HexBytes(_hash_eip191_message(message.signable_message))
@@ -102,27 +81,7 @@ def authorize(deadline: int, address: str, private_key: HexBytes) -> Dict[str, A
     api_payload: Dict[str, Any] = {
         "address": address,
         "deadline": deadline,
-        "signed_message": signed_message.hex(),
-    }
-
-    return api_payload
-
-
-def register(address: str, private_key: HexBytes) -> Dict[str, Any]:
-    """
-    Generates SignIn message for address.
-    """
-    message = MoonstreamRegistration(
-        _name_=AUTH_PAYLOAD_NAME,
-        _version_=AUTH_VERSION,
-        address=address,
-    )  # type: ignore
-    msg_hash_bytes = HexBytes(_hash_eip191_message(message.signable_message))
-
-    signed_message = sign_message(msg_hash_bytes, private_key)
-
-    api_payload: Dict[str, Any] = {
-        "address": address,
+        "application": application,
         "signed_message": signed_message.hex(),
     }
 
@@ -133,10 +92,7 @@ def to_checksum_address(address: str) -> ChecksumAddress:
     return Web3.toChecksumAddress(cast(str, address))
 
 
-def verify(
-    authorization_payload: Dict[str, Any],
-    schema: str,
-) -> bool:
+def verify(authorization_payload: Dict[str, Any], application_to_check: str) -> bool:
     """
     Verifies provided signature from signer with correct address.
     """
@@ -146,29 +102,24 @@ def verify(
     address = to_checksum_address(authorization_payload["address"])
     signature = cast(str, authorization_payload["signed_message"])
 
-    if schema == Schemas.authorization.name:
-        deadline = cast(int, authorization_payload["deadline"])
-        if deadline < time_now:
-            raise exceptions.MoonstreamAuthorizationExpired("Deadline exceeded")
-        message = Schemas.authorization.value(
-            _name_=AUTH_PAYLOAD_NAME,
-            _version_=AUTH_VERSION,
-            address=address,
-            deadline=deadline,
-        )  # type: ignore
-    elif schema == Schemas.registration.name:
-        message = Schemas.registration.value(
-            _name_=AUTH_PAYLOAD_NAME,
-            _version_=AUTH_VERSION,
-            address=address,
-        )  # type: ignore
-    else:
-        raise exceptions.MoonstreamVerificationError("Unaccepted schema")
+    deadline = cast(int, authorization_payload["deadline"])
+    if deadline < time_now:
+        raise exceptions.Web3AuthorizationExpired("Deadline exceeded")
+    application = cast(str, authorization_payload["application"])
+    if application_to_check != application:
+        raise exceptions.Web3AuthorizationWrongApplication("Wrong application provided")
+    message = Web3Authorization(
+        _name_=AUTH_PAYLOAD_NAME,
+        _version_=AUTH_VERSION,
+        address=address,
+        deadline=deadline,
+        application=application,
+    )  # type: ignore
 
     signer_address = web3_client.eth.account.recover_message(
         message.signable_message, signature=signature
     )
     if signer_address != address:
-        raise exceptions.MoonstreamVerificationError("Invalid signer")
+        raise exceptions.Web3VerificationError("Invalid signer")
 
     return True
