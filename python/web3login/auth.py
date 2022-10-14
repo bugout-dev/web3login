@@ -92,7 +92,11 @@ def to_checksum_address(address: str) -> ChecksumAddress:
     return Web3.toChecksumAddress(cast(str, address))
 
 
-def verify(authorization_payload: Dict[str, Any], application_to_check: str, silent: bool = False) -> bool:
+def verify(
+    authorization_payload: Dict[str, Any],
+    application_to_check: str,
+    silent: bool = False,
+) -> bool:
     """
     Verifies provided signature from signer with correct address.
     """
