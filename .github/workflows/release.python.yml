@@ -1,8 +1,13 @@
-name: Publish Moonstream Python Web3 authorization library
+name: Publish Web3 authorization Python library
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'python/v*'
+
+defaults:
+  run:
+    working-directory: python
 
 jobs:
   publish:

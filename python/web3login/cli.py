@@ -8,7 +8,7 @@ from typing import Tuple
 from eth_account import Account
 from hexbytes import HexBytes
 
-from .auth import AUTH_DEADLINE_DEFAULT_INTERVAL, Schemas, authorize, register, verify
+from .auth import AUTH_DEADLINE_DEFAULT_INTERVAL, authorize, verify
 
 
 def decrypt_keystore(keystore_path: str, password: str) -> Tuple[str, HexBytes]:
@@ -22,23 +22,19 @@ def handle_authorize(args: argparse.Namespace) -> None:
     if password is None:
         password = getpass.getpass()
     address, private_key = decrypt_keystore(args.signer, password)
-    authorization_payload = authorize(args.deadline, address, private_key)
+    authorization_payload = authorize(
+        deadline=args.deadline,
+        address=address,
+        application=args.application,
+        private_key=private_key,
+    )
     print(json.dumps(authorization_payload))
-
-
-def handle_register(args: argparse.Namespace) -> None:
-    password = args.password
-    if password is None:
-        password = getpass.getpass()
-    address, private_key = decrypt_keystore(args.signer, password)
-    registration_payload = register(address, private_key)
-    print(json.dumps(registration_payload))
 
 
 def handle_verify(args: argparse.Namespace) -> None:
     payload_json = base64.decodebytes(args.payload).decode("utf-8")
     payload = json.loads(payload_json)
-    verify(authorization_payload=payload, schema=Schemas[args.schema].name)
+    verify(authorization_payload=payload, application_to_check=args.application)
     print("Verified!")
 
 
@@ -49,6 +45,12 @@ def main() -> None:
     subcommands = parser.add_subparsers()
 
     authorize_parser = subcommands.add_parser("authorize")
+    authorize_parser.add_argument(
+        "-a",
+        "--application",
+        default="",
+        help="Application authorization belongs to, by default is equal to empty string.",
+    )
     authorize_parser.add_argument(
         "-t",
         "--deadline",
@@ -70,27 +72,12 @@ def main() -> None:
     )
     authorize_parser.set_defaults(func=handle_authorize)
 
-    register_parser = subcommands.add_parser("register")
-    register_parser.add_argument(
-        "-s",
-        "--signer",
-        required=True,
-        help="Path to signer keyfile (or brownie account name).",
-    )
-    register_parser.add_argument(
-        "-p",
-        "--password",
-        required=False,
-        help="(Optional) password for signing account. If you don't provide it here, you will be prompte for it.",
-    )
-    register_parser.set_defaults(func=handle_register)
-
     verify_parser = subcommands.add_parser("verify")
     verify_parser.add_argument(
-        "-s",
-        "--schema",
-        required=True,
-        help=f"Which schema to use for verification ({[member for member in Schemas.__members__]})",
+        "-a",
+        "--application",
+        default="",
+        help="Application authorization belongs to, by default is equal to empty string.",
     )
     verify_parser.add_argument(
         "--payload",
