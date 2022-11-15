@@ -44,7 +44,7 @@ class OAuth2Web3Signature(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        authorization: str = request.headers.get("Authorization")
+        authorization: str = request.headers.get("Authorization")  # type: ignore
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or scheme.lower() != "web3":
             if self.auto_error:
@@ -83,7 +83,7 @@ class OAuth2BearerOrWeb3(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        authorization: str = request.headers.get("Authorization")
+        authorization: str = request.headers.get("Authorization")  # type: ignore
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or (
             scheme.lower() != "web3" and scheme.lower() != "bearer"
