@@ -1,7 +1,8 @@
 import base64
 import json
 import logging
-from typing import Awaitable, Callable, Dict, Optional
+import uuid
+from typing import Awaitable, Callable, Dict, List, Optional
 
 from fastapi import Request, Response
 from fastapi.exceptions import HTTPException
@@ -43,7 +44,7 @@ class OAuth2Web3Signature(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        authorization: str = request.headers.get("Authorization")
+        authorization: str = request.headers.get("Authorization")  # type: ignore
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or scheme.lower() != "web3":
             if self.auto_error:
@@ -82,7 +83,7 @@ class OAuth2BearerOrWeb3(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        authorization: str = request.headers.get("Authorization")
+        authorization: str = request.headers.get("Authorization")  # type: ignore
         scheme, param = get_authorization_scheme_param(authorization)
         if not authorization or (
             scheme.lower() != "web3" and scheme.lower() != "bearer"
@@ -98,26 +99,31 @@ class OAuth2BearerOrWeb3(OAuth2):
         return param
 
 
-class Web3AuthorizationMiddleware(BaseHTTPMiddleware):
+class AuthorizationCheckMiddleware(BaseHTTPMiddleware):
     """
     Checks the authorization header on the request. It it represents
-    a correctly signer message, adds address and deadline attributes to the request.state.
-    Otherwise raises a 403 error.
+    a correct format of authorization Bearer or Web3 header, adds attributes to the request.state.
+    Otherwise raises an error.
     """
 
     def __init__(
-        self, app, whitelist: Optional[Dict[str, str]] = None, application: str = ""
+        self,
+        app,
+        whitelist: Optional[Dict[str, str]] = None,
+        application: str = "",
+        auth_types: List[str] = ["bearer", "web3"],
     ):
         self.whitelist: Dict[str, str] = {}
         if whitelist is not None:
             self.whitelist = whitelist
         self.application = application
+        self.auth_types = auth_types
         super().__init__(app)
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ):
-        # Filter out whitelisted endpoints to bypass web3 authorization
+        # Filter out whitelisted endpoints to bypass authorization
         path = request.url.path.rstrip("/")
         method = request.method
 
@@ -132,32 +138,53 @@ class Web3AuthorizationMiddleware(BaseHTTPMiddleware):
             )
 
         authorization_header_components = raw_authorization_header.split()
-        if (
-            len(authorization_header_components) != 2
-            or authorization_header_components[0].lower() != "web3"
-        ):
+        if len(authorization_header_components) != 2:
             return Response(
                 status_code=403,
-                content="Incorrect format for authorization header. Expected 'Authorization: web3 <base64_encoded_json_payload>'",
+                content="Incorrect format of authorization header",
+            )
+        authorization_header_scheme = authorization_header_components[0].lower()
+        if authorization_header_scheme not in self.auth_types:
+            err_msg_types = [f"'Authorization: {t} <token>'" for t in self.auth_types]
+            return Response(
+                status_code=403,
+                content=f"Expected {' '.join(err_msg_types)}",
             )
 
         try:
-            json_payload_str = base64.b64decode(
-                authorization_header_components[-1]
-            ).decode("utf-8")
+            if authorization_header_scheme == "bearer":
+                request.state.application = self.application
+                request.state.token = uuid.UUID(authorization_header_components[-1])
+                request.state.auth_type = "bearer"
+            elif authorization_header_scheme == "web3":
+                json_payload_str = base64.b64decode(
+                    authorization_header_components[-1]
+                ).decode("utf-8")
 
-            json_payload = json.loads(json_payload_str)
-            verified = verify(
-                authorization_payload=json_payload,
-                application_to_check=self.application,
-            )
-            address = json_payload.get("address")
-            deadline = json_payload.get("deadline")
-            application = json_payload.get("application")
-            if address is not None:
-                address = Web3.toChecksumAddress(address)
+                json_payload = json.loads(json_payload_str)
+                verified = verify(
+                    authorization_payload=json_payload,
+                    application_to_check=self.application,
+                )
+                address = json_payload.get("address")
+                deadline = json_payload.get("deadline")
+                application = json_payload.get("application")
+                if address is not None:
+                    address = Web3.toChecksumAddress(address)
+                else:
+                    raise Exception("Address in payload is None")
+
+                request.state.address = address
+                request.state.deadline = deadline
+                request.state.verified = verified
+
+                request.state.application = application
+                request.state.token = authorization_header_components[-1]
+                request.state.auth_type = "web3"
             else:
-                raise Exception("Address in payload is None")
+                raise Exception(
+                    f"Unsupported authorization header scheme: {authorization_header_scheme}"
+                )
         except Web3VerificationError as e:
             logger.info("Web3 authorization verification error: %s", e)
             return Response(status_code=403, content="Invalid authorization header")
@@ -167,11 +194,5 @@ class Web3AuthorizationMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error("Unexpected exception: %s", e)
             return Response(status_code=500, content="Internal server error")
-
-        request.state.address = address
-        request.state.deadline = deadline
-        request.state.application = application
-        request.state.verified = verified
-        request.state.signature = authorization_header_components[-1]
 
         return await call_next(request)
