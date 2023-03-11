@@ -12,7 +12,7 @@ setup(
     version=VERSION,
     packages=find_packages(),
     install_requires=[
-        "eip712",
+        "eip712==0.1.0",
         "eth-typing>=2.3.0",
         "web3>=5.30.0",
     ],
