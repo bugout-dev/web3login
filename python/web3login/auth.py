@@ -2,9 +2,11 @@ import time
 from typing import Any, Dict, cast
 
 import eth_keys  # type: ignore
-from eip712.messages import EIP712Message, _hash_eip191_message
+from eip712.messages import EIP712Message
 from eth_account._utils.signing import sign_message_hash
-from eth_typing import ChecksumAddress
+from eth_account.messages import SignableMessage
+from eth_typing import ChecksumAddress, Hash32
+from eth_utils.curried import ValidationError, keccak
 from hexbytes import HexBytes
 from web3 import Web3
 
@@ -52,12 +54,24 @@ class Web3Authorization(EIP712Message):
 
 
 def sign_message(message_hash_bytes: HexBytes, private_key: HexBytes) -> HexBytes:
-
     eth_private_key = eth_keys.keys.PrivateKey(private_key)
     _, _, _, signed_message_bytes = sign_message_hash(
         eth_private_key, message_hash_bytes
     )
     return signed_message_bytes
+
+
+def hash_eip191_message(signable_message: SignableMessage) -> Hash32:
+    # https://github.com/ethereum/eth-account/blob/50ccddf/eth_account/messages.py#L65
+    version = signable_message.version
+    if len(version) != 1:
+        raise ValidationError(
+            f"The supplied message version is {version!r}. "
+            "The EIP-191 signable message standard only supports one-byte versions."
+        )
+
+    joined = b"\x19" + version + signable_message.header + signable_message.body
+    return Hash32(keccak(joined))
 
 
 def authorize(
@@ -74,7 +88,7 @@ def authorize(
         application=application,
     )  # type: ignore
 
-    msg_hash_bytes = HexBytes(_hash_eip191_message(message.signable_message))
+    msg_hash_bytes = HexBytes(hash_eip191_message(message.signable_message))
 
     signed_message = sign_message(msg_hash_bytes, private_key)
 
