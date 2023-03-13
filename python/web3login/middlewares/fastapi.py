@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, Dict, List, Optional
 
 from fastapi import Request, Response
 from fastapi.exceptions import HTTPException
+from fastapi.openapi.models import OAuthFlowPassword
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security import OAuth2
 from fastapi.security.utils import get_authorization_scheme_param
@@ -35,7 +36,13 @@ class OAuth2Web3Signature(OAuth2):
     ):
         if not scopes:
             scopes = {}
-        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+
+        flows = OAuthFlowsModel(
+            password=OAuthFlowPassword(
+                tokenUrl=tokenUrl,
+                scopes=scopes,
+            )
+        )
         super().__init__(
             flows=flows,
             scheme_name=scheme_name,
@@ -74,7 +81,12 @@ class OAuth2BearerOrWeb3(OAuth2):
     ):
         if not scopes:
             scopes = {}
-        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        flows = OAuthFlowsModel(
+            password=OAuthFlowPassword(
+                tokenUrl=tokenUrl,
+                scopes=scopes,
+            )
+        )
         super().__init__(
             flows=flows,
             scheme_name=scheme_name,
